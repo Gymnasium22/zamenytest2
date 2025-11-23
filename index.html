@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Гимназия: Управление v6.1</title>
+    <title>Гимназия: Управление v6.2</title>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href='data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22Gymnasium%20Manager%20Pro%22%2C%22short_name%22%3A%22Gymnasium%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%234f46e5%22%2C%22icons%22%3A%5B%5D%7D' />
@@ -134,7 +134,8 @@
             RotateCcw: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>,
             RotateCw: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>,
             Loader: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>,
-            History: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+            History: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>,
+            Table: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-7z"/><path d="M3 9h18"/><path d="M12 21V9"/></svg>
         };
         
         const Icon = ({ name, size = 24, className = "", ...props }) => {
@@ -149,7 +150,6 @@
         const DAYS = [DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday, DayOfWeek.Saturday];
         const SHIFT_PERIODS = { [Shift.First]: [1, 2, 3, 4, 5, 6, 7], [Shift.Second]: [0, 1, 2, 3, 4, 5, 6] };
         
-        // НАЧАЛО: Обновленная структура звонков с поддержкой дней (из v5.1)
         const DEFAULT_BELLS = [
             { shift: Shift.First, period: 1, start: "08:00", end: "08:45", day: "default" },
             { shift: Shift.First, period: 2, start: "08:55", end: "09:40", day: "default" },
@@ -166,7 +166,6 @@
             { shift: Shift.Second, period: 5, start: "18:00", end: "18:45", day: "default" },
             { shift: Shift.Second, period: 6, start: "18:50", end: "19:35", day: "default" }
         ];
-        // КОНЕЦ
 
         const INITIAL_DATA = {
             subjects: [
@@ -243,10 +242,7 @@
                     const fixedData = { ...INITIAL_DATA, ...loaded };
                     if(!fixedData.bellSchedule) fixedData.bellSchedule = DEFAULT_BELLS;
                     fixedData.teachers = fixedData.teachers.map(t => ({ shifts: [Shift.First, Shift.Second], ...t }));
-                    
-                    // НАЧАЛО: Миграция звонков (v5.1)
                     fixedData.bellSchedule = fixedData.bellSchedule.map(b => b.day ? b : { ...b, day: 'default' });
-                    // КОНЕЦ
 
                     setInternalData(fixedData); 
                     setHistory([fixedData]);
@@ -417,7 +413,6 @@
             </div>
         );
 
-        // НАЧАЛО: Улучшенный виджет из v5.1
         const StatusWidget = () => {
             const { data } = useData();
             const [status, setStatus] = useState("Загрузка...");
@@ -519,7 +514,6 @@
                 </div>
             );
         };
-        // КОНЕЦ
 
         // --- PAGES ---
 
@@ -566,11 +560,12 @@
                 }
 
                 if (filterRoom) items = items.filter(s => s.roomId === filterRoom);
-                if (filterDirection) items = items.filter(s => s.direction === filterDirection);
+                if (filterDirection) items = items.filter(s => s.direction?.toLowerCase().includes(filterDirection.toLowerCase()));
                 
                 return items;
             };
 
+            // НАЧАЛО: Исправленная логика конфликтов (с учетом направлений)
             const checkConflicts = (item) => {
                 const conflicts = [];
                 const others = data.schedule.filter(s => s.id !== item.id && s.day === item.day && s.period === item.period && s.shift === item.shift);
@@ -578,7 +573,17 @@
                 const teacherBusy = others.find(s => s.teacherId === item.teacherId);
                 if (teacherBusy) conflicts.push('teacher');
 
-                const classBusy = others.find(s => s.classId === item.classId);
+                // У одного класса может быть несколько уроков, если у них РАЗНЫЕ направления (например, группы).
+                // Конфликт только если:
+                // 1. У обоих нет направления (весь класс занят)
+                // 2. У одного нет направления (весь класс), а у другого есть
+                // 3. У обоих одно и то же направление
+                const classBusy = others.find(s => {
+                    if (s.classId !== item.classId) return false;
+                    // Если направления разные и оба заполнены - это ОК
+                    if (s.direction && item.direction && s.direction !== item.direction) return false;
+                    return true; // Иначе конфликт
+                });
                 if (classBusy) conflicts.push('class');
 
                 if (item.roomId) {
@@ -588,6 +593,7 @@
 
                 return conflicts;
             };
+            // КОНЕЦ
 
             const handleEditItem = (item) => { if(readOnly) return; setTempItem(item); setIsEditorOpen(true); };
             const handleAddItem = (rowId, period, day = selectedDay) => {
@@ -691,6 +697,7 @@
 
             const printTitle = viewMode === 'teacher' && filterId ? data.teachers.find(t=>t.id===filterId)?.name 
                              : viewMode === 'class' && filterId ? data.classes.find(c=>c.id===filterId)?.name 
+                             : viewMode === 'subject' && filterId ? data.subjects.find(s=>s.id===filterId)?.name
                              : 'Расписание';
             
             const rows = getRows();
@@ -737,11 +744,13 @@
                             <input placeholder="Каб..." value={filterRoom} onChange={e=>setFilterRoom(e.target.value)} className="w-20 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2 text-xs font-bold" />
                             <input placeholder="Проф..." value={filterDirection} onChange={e=>setFilterDirection(e.target.value)} className="w-20 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2 text-xs font-bold" />
 
+                            {/* НАЧАЛО: Исправлено условие кнопки печати (добавлена поддержка предметов) */}
                             {(filterId || viewMode === 'week') && (
                                 <button onClick={() => setIsPrintModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-all">
                                     <Icon name="Printer" size={16}/>
                                 </button>
                             )}
+                            {/* КОНЕЦ */}
                         </div>
                     </div>
 
@@ -889,7 +898,11 @@
                                                 <td className="border border-black p-2 text-center font-bold bg-gray-50">{period}</td>
                                                 {DAYS.map(day => {
                                                     const items = filterId 
-                                                        ? data.schedule.filter(s => s.day === day && s.period === period && (viewMode === 'teacher' ? s.teacherId === filterId : s.classId === filterId))
+                                                        ? data.schedule.filter(s => s.day === day && s.period === period && (
+                                                            viewMode === 'teacher' ? s.teacherId === filterId : 
+                                                            viewMode === 'subject' ? s.subjectId === filterId : // НАЧАЛО: Исправлена печать по предметам
+                                                            s.classId === filterId
+                                                        ))
                                                         : [];
                                                     return (
                                                         <td key={day} className="border border-black p-2 align-top h-20">
@@ -899,8 +912,17 @@
                                                                 const t = data.teachers.find(x=>x.id===item.teacherId);
                                                                 return (
                                                                     <div key={item.id} className="mb-1 text-xs">
-                                                                        <div className="font-bold">{s?.name} {item.direction ? `(${item.direction})` : ''}</div>
-                                                                        <div className="text-gray-600">{viewMode === 'teacher' ? c?.name : t?.name}</div>
+                                                                        <div className="font-bold">
+                                                                            {/* НАЧАЛО: Логика отображения для разных режимов */}
+                                                                            {viewMode === 'subject' ? c?.name : s?.name} 
+                                                                            {item.direction ? ` (${item.direction})` : ''}
+                                                                        </div>
+                                                                        <div className="text-gray-600">
+                                                                            {viewMode === 'teacher' ? c?.name : 
+                                                                             viewMode === 'subject' ? t?.name :
+                                                                             t?.name}
+                                                                        </div>
+                                                                        {/* КОНЕЦ */}
                                                                         {item.roomId && <div className="text-gray-400 italic">Каб. {item.roomId}</div>}
                                                                     </div>
                                                                 );
@@ -1242,10 +1264,22 @@
             const { data } = useData();
             const [activeTab, setActiveTab] = useState('teachers'); // 'teachers' | 'rooms'
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-            const [afterPeriod, setAfterPeriod] = useState(4);
+            // НАЧАЛО: Исправлены начальные значения
             const [teacherShift, setTeacherShift] = useState(Shift.First);
-            const [roomPeriod, setRoomPeriod] = useState(1);
+            const [afterPeriod, setAfterPeriod] = useState(1); // Default 1 for 1st shift
             const [roomShift, setRoomShift] = useState(Shift.First);
+            const [roomPeriod, setRoomPeriod] = useState(1);
+            // КОНЕЦ
+
+            // НАЧАЛО: Авто-сброс урока при смене смены
+            useEffect(() => {
+                setAfterPeriod(teacherShift === Shift.First ? 1 : 0);
+            }, [teacherShift]);
+
+            useEffect(() => {
+                setRoomPeriod(roomShift === Shift.First ? 1 : 0);
+            }, [roomShift]);
+            // КОНЕЦ
 
             const selectedDayOfWeek = useMemo(() => {
                 const idx = new Date(selectedDate).getDay();
@@ -1253,14 +1287,13 @@
                 return DAYS[idx - 1];
             }, [selectedDate]);
 
-            // НАЧАЛО: Фильтрация уроков (v5.1)
             const periodsForShift = SHIFT_PERIODS[teacherShift];
-            // КОНЕЦ
 
             const freeTeachers = useMemo(() => {
                 if (!selectedDayOfWeek) return [];
                 return data.teachers.filter(teacher => {
                     if (teacher.shifts && !teacher.shifts.includes(teacherShift)) return false;
+                    
                     if (teacher.unavailableDates.includes(selectedDate)) return false;
                     const hasLateLessons = data.schedule.some(s => 
                         s.teacherId === teacher.id && 
@@ -1272,6 +1305,7 @@
                 }).sort((a, b) => a.name.localeCompare(b.name));
             }, [data, selectedDate, selectedDayOfWeek, afterPeriod, teacherShift]);
 
+            // Room Logic
             const allKnownRooms = useMemo(() => {
                 const rooms = new Set();
                 data.schedule.forEach(s => {
@@ -1305,6 +1339,7 @@
                             </div>
                         </div>
 
+                        {/* Common Date Picker */}
                          <div className="mb-6">
                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Дата</label>
                              <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="border border-slate-200 dark:border-slate-600 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 bg-transparent dark:text-white w-full md:w-auto" />
@@ -1457,13 +1492,47 @@
                 document.body.removeChild(link);
             };
 
+            // НАЧАЛО: Функция экспорта для Google Sheets (Copy to Clipboard)
+            const copyForGoogleSheets = () => {
+                let tsv = "День\tСмена\tКласс\tУрок\tПредмет\tУчитель\tКабинет\tГруппа\n";
+                
+                DAYS.forEach(day => {
+                    [Shift.First, Shift.Second].forEach(shift => {
+                        const classes = data.classes.filter(c => c.shift === shift);
+                        classes.forEach(cls => {
+                            SHIFT_PERIODS[shift].forEach(period => {
+                                const items = data.schedule.filter(s => s.classId === cls.id && s.day === day && s.shift === shift && s.period === period);
+                                items.forEach(item => {
+                                    const sub = data.subjects.find(s => s.id === item.subjectId);
+                                    const teach = data.teachers.find(t => t.id === item.teacherId);
+                                    tsv += `${day}\t${shift}\t${cls.name}\t${period}\t${sub?.name || ''}\t${teach?.name || ''}\t${item.roomId || ''}\t${item.direction || ''}\n`;
+                                });
+                            });
+                        });
+                    });
+                });
+
+                navigator.clipboard.writeText(tsv).then(() => {
+                    alert("Данные скопированы! Откройте Google Sheets и нажмите Ctrl+V (Cmd+V).");
+                });
+            };
+            // КОНЕЦ
+
             const handleDownloadPng = async () => { if (!printRef.current || !window.html2canvas) return; setIsGenerating(true); try { const canvas = await window.html2canvas(printRef.current, { scale: 2, backgroundColor: '#ffffff', logging: false }); const link = document.createElement('a'); link.download = `Замены_${exportDate}.png`; link.href = canvas.toDataURL('image/png'); link.click(); } catch (e) { console.error(e); alert("Ошибка при создании изображения"); } setIsGenerating(false); };
             const subsForDate = data.substitutions.filter(s => s.date === exportDate);
             return (
                 <div className="max-w-5xl mx-auto space-y-8 pb-20">
                     <section className="bg-white dark:bg-dark-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Icon name="Download" className="text-indigo-600 dark:text-indigo-400"/> Резервное копирование</h2><div className="flex flex-wrap gap-4"><button onClick={() => dbService.exportJson(data)} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 dark:shadow-none flex items-center gap-2"><Icon name="Download" size={20}/> Скачать JSON</button><div className="relative"><input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" className="hidden" /><button onClick={() => fileInputRef.current?.click()} className="px-6 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 rounded-xl font-bold hover:bg-slate-50 dark:hover:bg-slate-600 transition flex items-center gap-2"><Icon name="Upload" size={20}/> Загрузить JSON</button></div></div></section>
                     <section className="bg-white dark:bg-dark-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700"><div className="flex flex-col sm:flex-row justify-between items-center gap-6 mb-6"><div><h2 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-2"><Icon name="Image" className="text-indigo-600 dark:text-indigo-400"/> Экспорт замен (PNG)</h2></div><div className="flex gap-4 items-center"><input type="date" value={exportDate} onChange={e => setExportDate(e.target.value)} className="border border-slate-200 dark:border-slate-600 p-2 rounded-lg font-bold outline-none focus:border-indigo-500 bg-transparent dark:text-white"/><button onClick={handleDownloadPng} disabled={isGenerating} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200 dark:shadow-none flex items-center gap-2 disabled:opacity-50">{isGenerating ? <><Icon name="Loader" size={20} className="animate-spin"/> Создание...</> : <><Icon name="Download" size={20}/> Скачать PNG</>}</button></div></div><div className="overflow-auto bg-slate-100 dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-700 flex justify-center"><div ref={printRef} className="bg-white p-8 min-w-[800px] max-w-[1000px] shadow-xl text-slate-900"><div className="flex justify-between items-end border-b-2 border-slate-800 pb-4 mb-6"><div><h1 className="text-3xl font-black uppercase tracking-tight mb-1 text-slate-800">Замена Учителей</h1><p className="text-sm font-bold text-slate-500 uppercase tracking-wider">Гимназия • Официальный документ</p></div><div className="text-right"><div className="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Дата</div><div className="text-xl font-bold text-slate-800">{new Date(exportDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</div></div></div>{subsForDate.length === 0 ? (<div className="py-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-slate-50"><p className="text-slate-400 font-medium italic">Замен на этот день нет</p></div>) : (<table className="w-full text-left border-collapse"><thead><tr className="border-b border-slate-200"><th className="py-3 px-2 font-black text-slate-400 text-xs uppercase tracking-wider w-16 text-center">Урок</th><th className="py-3 px-2 font-black text-slate-400 text-xs uppercase tracking-wider w-24">Класс</th><th className="py-3 px-2 font-black text-slate-400 text-xs uppercase tracking-wider">Предмет</th><th className="py-3 px-2 font-black text-slate-400 text-xs uppercase tracking-wider w-1/4">Отсутствует</th><th className="py-3 px-2 font-black text-slate-400 text-xs uppercase tracking-wider w-1/4">Заменяет</th><th className="py-3 px-2 font-black text-slate-400 text-xs uppercase tracking-wider w-20 text-right">Каб.</th></tr></thead><tbody className="divide-y divide-slate-100">{subsForDate.map(sub => { const s = data.schedule.find(x => x.id === sub.scheduleItemId); if (!s) return null; const cls = data.classes.find(c => c.id === s.classId); const subj = data.subjects.find(x => x.id === s.subjectId); const t1 = data.teachers.find(t => t.id === sub.originalTeacherId); const t2 = data.teachers.find(t => t.id === sub.replacementTeacherId); return (<tr key={sub.id}><td className="py-3 px-2 text-center font-bold text-slate-800 text-lg">{s.period}</td><td className="py-3 px-2 font-bold text-slate-700">{cls?.name}</td><td className="py-3 px-2"><div className="font-semibold text-slate-800">{subj?.name}</div>{s.direction && <div className="text-[10px] text-slate-500 bg-slate-100 inline-block px-1 rounded mt-0.5">{s.direction}</div>}</td><td className="py-3 px-2 text-red-400 line-through text-sm font-medium decoration-red-200">{t1?.name}</td><td className="py-3 px-2 text-emerald-700 font-bold text-sm">{t2?.name}</td><td className="py-3 px-2 text-right font-mono text-slate-500">{s.roomId || '—'}</td></tr>) })}</tbody></table>)}<div className="mt-8 pt-4 border-t border-slate-100 flex justify-between items-end text-[10px] text-slate-400"><div>Сформировано автоматически</div><div className="flex flex-col items-end gap-2"><div className="h-px w-32 bg-slate-300"></div><div>Подпись администрации</div></div></div></div></div></section>
-                    <section className="bg-white dark:bg-dark-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700"><h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Icon name="FileSpreadsheet" className="text-emerald-600 dark:text-emerald-400"/> Экспорт данных</h2><button onClick={exportStyledExcel} className="px-6 py-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-xl font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition flex items-center gap-2"><Icon name="FileSpreadsheet" size={20}/> Скачать Excel (XLS)</button></section>
+                    <section className="bg-white dark:bg-dark-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700">
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Icon name="FileSpreadsheet" className="text-emerald-600 dark:text-emerald-400"/> Экспорт данных</h2>
+                        <div className="flex flex-wrap gap-4">
+                            <button onClick={exportStyledExcel} className="px-6 py-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-xl font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition flex items-center gap-2"><Icon name="FileSpreadsheet" size={20}/> Скачать Excel (XLS)</button>
+                            {/* НАЧАЛО: Новая кнопка для Google Sheets */}
+                            <button onClick={copyForGoogleSheets} className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-200 dark:shadow-none flex items-center gap-2"><Icon name="Clipboard" size={20}/> Копировать для Google Sheets</button>
+                            {/* КОНЕЦ */}
+                        </div>
+                    </section>
                 </div>
             );
         };
@@ -1493,7 +1562,7 @@
                         <div className="h-full flex flex-col">
                             <div className="p-6 flex items-center gap-3 border-b border-slate-100 dark:border-slate-700">
                                 <div className="bg-indigo-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-200 dark:shadow-none"><Icon name="GraduationCap" size={24} strokeWidth={2} /></div>
-                                <div><h1 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Гимназия</h1><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Менеджер v6.1</p></div>
+                                <div><h1 className="text-lg font-black tracking-tight text-slate-800 dark:text-white">Гимназия</h1><p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Менеджер v6.2</p></div>
                                 <button className="lg:hidden ml-auto text-slate-400" onClick={() => setIsMobileMenuOpen(false)}><Icon name="X" size={24} /></button>
                             </div>
                             <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
