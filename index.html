@@ -565,7 +565,6 @@
                 return items;
             };
 
-            // НАЧАЛО: Исправленная логика конфликтов (с учетом направлений)
             const checkConflicts = (item) => {
                 const conflicts = [];
                 const others = data.schedule.filter(s => s.id !== item.id && s.day === item.day && s.period === item.period && s.shift === item.shift);
@@ -573,16 +572,10 @@
                 const teacherBusy = others.find(s => s.teacherId === item.teacherId);
                 if (teacherBusy) conflicts.push('teacher');
 
-                // У одного класса может быть несколько уроков, если у них РАЗНЫЕ направления (например, группы).
-                // Конфликт только если:
-                // 1. У обоих нет направления (весь класс занят)
-                // 2. У одного нет направления (весь класс), а у другого есть
-                // 3. У обоих одно и то же направление
                 const classBusy = others.find(s => {
                     if (s.classId !== item.classId) return false;
-                    // Если направления разные и оба заполнены - это ОК
                     if (s.direction && item.direction && s.direction !== item.direction) return false;
-                    return true; // Иначе конфликт
+                    return true; 
                 });
                 if (classBusy) conflicts.push('class');
 
@@ -593,7 +586,6 @@
 
                 return conflicts;
             };
-            // КОНЕЦ
 
             const handleEditItem = (item) => { if(readOnly) return; setTempItem(item); setIsEditorOpen(true); };
             const handleAddItem = (rowId, period, day = selectedDay) => {
@@ -744,13 +736,11 @@
                             <input placeholder="Каб..." value={filterRoom} onChange={e=>setFilterRoom(e.target.value)} className="w-20 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2 text-xs font-bold" />
                             <input placeholder="Проф..." value={filterDirection} onChange={e=>setFilterDirection(e.target.value)} className="w-20 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg p-2 text-xs font-bold" />
 
-                            {/* НАЧАЛО: Исправлено условие кнопки печати (добавлена поддержка предметов) */}
                             {(filterId || viewMode === 'week') && (
                                 <button onClick={() => setIsPrintModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-all">
                                     <Icon name="Printer" size={16}/>
                                 </button>
                             )}
-                            {/* КОНЕЦ */}
                         </div>
                     </div>
 
@@ -900,7 +890,7 @@
                                                     const items = filterId 
                                                         ? data.schedule.filter(s => s.day === day && s.period === period && (
                                                             viewMode === 'teacher' ? s.teacherId === filterId : 
-                                                            viewMode === 'subject' ? s.subjectId === filterId : // НАЧАЛО: Исправлена печать по предметам
+                                                            viewMode === 'subject' ? s.subjectId === filterId : 
                                                             s.classId === filterId
                                                         ))
                                                         : [];
@@ -913,7 +903,6 @@
                                                                 return (
                                                                     <div key={item.id} className="mb-1 text-xs">
                                                                         <div className="font-bold">
-                                                                            {/* НАЧАЛО: Логика отображения для разных режимов */}
                                                                             {viewMode === 'subject' ? c?.name : s?.name} 
                                                                             {item.direction ? ` (${item.direction})` : ''}
                                                                         </div>
@@ -922,7 +911,6 @@
                                                                              viewMode === 'subject' ? t?.name :
                                                                              t?.name}
                                                                         </div>
-                                                                        {/* КОНЕЦ */}
                                                                         {item.roomId && <div className="text-gray-400 italic">Каб. {item.roomId}</div>}
                                                                     </div>
                                                                 );
@@ -951,7 +939,6 @@
             const [classForm, setClassForm] = useState({ shift: Shift.First });
             const [draggedIdx, setDraggedIdx] = useState(null);
 
-            // НАЧАЛО: Логика специфичных дней (из v5.1)
             const [activeBellDay, setActiveBellDay] = useState('default');
 
             const getActiveBells = (shift, period) => {
@@ -963,7 +950,6 @@
                 }
                 return bell || { start: '', end: '' };
             };
-            // КОНЕЦ
 
             const openModal = (id) => {
                 setEditingId(id || null);
@@ -984,7 +970,6 @@
             const onDragOver = (e) => { e.preventDefault(); };
             const onDrop = async (e, index) => { if (draggedIdx === null || draggedIdx === index) return; let list = activeTab === 'teachers' ? [...data.teachers] : activeTab === 'subjects' ? [...data.subjects] : [...data.classes]; const item = list.splice(draggedIdx, 1)[0]; list.splice(index, 0, item); if (activeTab === 'teachers') await saveData({ ...data, teachers: list }); else if (activeTab === 'subjects') await saveData({ ...data, subjects: list }); else await saveData({ ...data, classes: list }); setDraggedIdx(null); };
 
-            // НАЧАЛО: Сохранение звонков с днями
             const handleBellChange = async (shift, period, field, value) => {
                 let bells = [...data.bellSchedule];
                 const dayKey = activeBellDay;
@@ -997,7 +982,6 @@
                 }
                 await saveData({ ...data, bellSchedule: bells });
             };
-            // КОНЕЦ
 
             const toggleShift = (shift) => {
                 const currentShifts = teacherForm.shifts || [];
@@ -1023,7 +1007,7 @@
                         {activeTab === 'teachers' && (<StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{data.teachers.map((t, i) => (<div key={t.id} draggable onDragStart={(e)=>onDragStart(e,i)} onDragOver={onDragOver} onDrop={(e)=>onDrop(e,i)} className="bg-white dark:bg-dark-800 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-md transition-all group flex flex-col cursor-grab active:cursor-grabbing"><div className="flex justify-between items-start mb-2"><div className="flex items-center gap-3"><Icon name="GripVertical" className="text-slate-300 dark:text-slate-600" size={16}/><div className="font-bold text-slate-800 dark:text-slate-100 text-lg">{t.name}</div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => openModal(t.id)} className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 dark:bg-slate-700 rounded-full"><Icon name="Edit2" size={16}/></button><button onClick={() => handleDelete(t.id)} className="p-2 text-slate-400 hover:text-red-600 bg-slate-50 dark:bg-slate-700 rounded-full"><Icon name="Trash2" size={16}/></button></div></div><div className="flex gap-2 mb-3">{t.shifts?.includes(Shift.First) && <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-bold">1 см</span>}{t.shifts?.includes(Shift.Second) && <span className="text-[10px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-bold">2 см</span>}</div><div className="flex flex-wrap gap-1 mt-auto pl-7">{t.subjectIds.map(sid => { const s = data.subjects.find(sub => sub.id === sid); return s ? <span key={sid} className="text-xs px-2 py-1 rounded-md font-medium" style={{backgroundColor: s.color, color: '#334155'}}>{s.name}</span> : null })}</div></div>))}</StaggerContainer>)}
                         {activeTab === 'subjects' && (<StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">{data.subjects.map((s, i) => (<div key={s.id} draggable onDragStart={(e)=>onDragStart(e,i)} onDragOver={onDragOver} onDrop={(e)=>onDrop(e,i)} className="bg-white dark:bg-dark-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex items-center justify-between group cursor-grab active:cursor-grabbing"><div className="flex items-center gap-3"><Icon name="GripVertical" className="text-slate-300 dark:text-slate-600" size={16}/><div className="w-8 h-8 rounded-full shadow-inner border border-black/5" style={{backgroundColor: s.color}}></div><div><div className="font-bold text-slate-700 dark:text-slate-200">{s.name}</div><div className="text-xs text-slate-400">Сложность: {s.difficulty}</div></div></div><div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => openModal(s.id)} className="p-1.5 text-slate-400 hover:text-indigo-600"><Icon name="Edit2" size={16}/></button><button onClick={() => handleDelete(s.id)} className="p-1.5 text-slate-400 hover:text-red-600"><Icon name="Trash2" size={16}/></button></div></div>))}</StaggerContainer>)}
                         {activeTab === 'classes' && (<StaggerContainer className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">{data.classes.map((c, i) => (<div key={c.id} draggable onDragStart={(e)=>onDragStart(e,i)} onDragOver={onDragOver} onDrop={(e)=>onDrop(e,i)} className="bg-white dark:bg-dark-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm text-center group hover:shadow-md transition-all relative cursor-grab active:cursor-grabbing"><div className="absolute left-2 top-2 text-slate-300 dark:text-slate-600"><Icon name="GripVertical" size={14}/></div><div className="text-2xl font-black text-slate-800 dark:text-slate-100 mb-1">{c.name}</div><div className={`text-xs font-bold px-2 py-0.5 rounded-full inline-block ${c.shift === Shift.First ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>{c.shift === Shift.First ? 'I' : 'II'} смена</div><div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={() => openModal(c.id)} className="p-1 text-slate-400 hover:text-indigo-600"><Icon name="Edit2" size={14}/></button><button onClick={() => handleDelete(c.id)} className="p-1 text-slate-400 hover:text-red-600"><Icon name="Trash2" size={14}/></button></div></div>))}</StaggerContainer>)}
-                        {/* НАЧАЛО: Интерфейс звонков из v5.1 */}
+                        
                         {activeTab === 'bells' && (
                             <div className="flex flex-col gap-6">
                                 <div className="flex justify-center">
@@ -1063,7 +1047,6 @@
                                 </div>
                             </div>
                         )}
-                        {/* КОНЕЦ */}
                     </div>
                     <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Редактирование">
                         <div className="space-y-4">
@@ -1264,14 +1247,12 @@
             const { data } = useData();
             const [activeTab, setActiveTab] = useState('teachers'); // 'teachers' | 'rooms'
             const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-            // НАЧАЛО: Исправлены начальные значения
+            
             const [teacherShift, setTeacherShift] = useState(Shift.First);
-            const [afterPeriod, setAfterPeriod] = useState(1); // Default 1 for 1st shift
+            const [afterPeriod, setAfterPeriod] = useState(1);
             const [roomShift, setRoomShift] = useState(Shift.First);
             const [roomPeriod, setRoomPeriod] = useState(1);
-            // КОНЕЦ
 
-            // НАЧАЛО: Авто-сброс урока при смене смены
             useEffect(() => {
                 setAfterPeriod(teacherShift === Shift.First ? 1 : 0);
             }, [teacherShift]);
@@ -1279,7 +1260,6 @@
             useEffect(() => {
                 setRoomPeriod(roomShift === Shift.First ? 1 : 0);
             }, [roomShift]);
-            // КОНЕЦ
 
             const selectedDayOfWeek = useMemo(() => {
                 const idx = new Date(selectedDate).getDay();
@@ -1305,7 +1285,6 @@
                 }).sort((a, b) => a.name.localeCompare(b.name));
             }, [data, selectedDate, selectedDayOfWeek, afterPeriod, teacherShift]);
 
-            // Room Logic
             const allKnownRooms = useMemo(() => {
                 const rooms = new Set();
                 data.schedule.forEach(s => {
@@ -1339,7 +1318,6 @@
                             </div>
                         </div>
 
-                        {/* Common Date Picker */}
                          <div className="mb-6">
                              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-2">Дата</label>
                              <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="border border-slate-200 dark:border-slate-600 p-3 rounded-xl font-bold outline-none focus:border-indigo-500 bg-transparent dark:text-white w-full md:w-auto" />
@@ -1492,10 +1470,96 @@
                 document.body.removeChild(link);
             };
 
-            // НАЧАЛО: Функция экспорта для Google Sheets (Copy to Clipboard)
+            const exportMatrixExcel = () => {
+                const periods = [1, 2, 3, 4, 5, 6, 7];
+                let html = `
+                    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                    <head><meta charset="UTF-8"><style>
+                        table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 12px; }
+                        td, th { border: 1px solid #000; padding: 2px; vertical-align: middle; text-align: center; }
+                        .header { font-weight: bold; background-color: #f3f4f6; }
+                        .subject-cell { font-weight: bold; vertical-align: middle; background-color: #fff; }
+                        .teacher-cell { text-align: left; padding-left: 5px; }
+                        sub { font-size: 9px; vertical-align: sub; }
+                        .day-header { border: 2px solid #000; font-weight: bold; }
+                    </style></head><body><table>
+                `;
+
+                html += `<tr>
+                    <th rowspan="3" class="header" style="border: 2px solid #000; width: 150px;">Учебный предмет</th>
+                    <th rowspan="3" class="header" style="border: 2px solid #000; width: 200px;">ФИО</th>
+                    <th colspan="${DAYS.length * periods.length}" class="header" style="border: 2px solid #000; font-size: 14px;">День недели</th>
+                </tr>`;
+
+                html += `<tr>`;
+                DAYS.forEach(day => {
+                    html += `<th colspan="${periods.length}" class="header" style="border: 2px solid #000;">${day}</th>`;
+                });
+                html += `</tr>`;
+
+                html += `<tr>`;
+                DAYS.forEach(() => {
+                    html += `<th colspan="${periods.length}" class="header" style="border-bottom: 2px solid #000;">Урок</th>`;
+                });
+                html += `</tr>`;
+                
+                html += `<tr>
+                    <th class="header" style="border: 2px solid #000;">1 смена</th>
+                    <th class="header" style="border: 2px solid #000;"></th>
+                `;
+                DAYS.forEach(() => {
+                    periods.forEach(p => html += `<th class="header" style="width: 40px;">${p}</th>`);
+                });
+                html += `</tr>`;
+
+                data.subjects.forEach(subject => {
+                    const teachers = data.teachers.filter(t => t.subjectIds.includes(subject.id));
+                    if (teachers.length === 0) return;
+
+                    teachers.forEach((teacher, tIndex) => {
+                        html += `<tr>`;
+                        if (tIndex === 0) {
+                            html += `<td rowspan="${teachers.length}" class="subject-cell" style="border: 2px solid #000;">${subject.name}</td>`;
+                        }
+                        html += `<td class="teacher-cell" style="border-right: 2px solid #000;">${teacher.name}</td>`;
+
+                        DAYS.forEach(day => {
+                            periods.forEach(p => {
+                                const item = data.schedule.find(s => 
+                                    s.teacherId === teacher.id && 
+                                    s.subjectId === subject.id && 
+                                    s.day === day && 
+                                    s.period === p
+                                );
+
+                                if (item) {
+                                    const cls = data.classes.find(c => c.id === item.classId);
+                                    const room = item.roomId ? `<sub>${item.roomId}</sub>` : '';
+                                    const dir = item.direction ? ` <span style="font-size:9px">(${item.direction})</span>` : '';
+                                    html += `<td style="border: 1px solid #000; font-weight: bold;">${cls ? cls.name : ''}${dir}${room}</td>`;
+                                } else {
+                                    html += `<td style="border: 1px solid #000;"></td>`;
+                                }
+                            });
+                        });
+                        html += `</tr>`;
+                    });
+                    html += `<tr><td colspan="${2 + DAYS.length * periods.length}" style="height: 2px; background-color: #000;"></td></tr>`;
+                });
+
+                html += `</table></body></html>`;
+                const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = `Матрица_Расписания.xls`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            };
+
             const copyForGoogleSheets = () => {
                 let tsv = "День\tСмена\tКласс\tУрок\tПредмет\tУчитель\tКабинет\tГруппа\n";
-                
                 DAYS.forEach(day => {
                     [Shift.First, Shift.Second].forEach(shift => {
                         const classes = data.classes.filter(c => c.shift === shift);
@@ -1511,12 +1575,10 @@
                         });
                     });
                 });
-
                 navigator.clipboard.writeText(tsv).then(() => {
                     alert("Данные скопированы! Откройте Google Sheets и нажмите Ctrl+V (Cmd+V).");
                 });
             };
-            // КОНЕЦ
 
             const handleDownloadPng = async () => { if (!printRef.current || !window.html2canvas) return; setIsGenerating(true); try { const canvas = await window.html2canvas(printRef.current, { scale: 2, backgroundColor: '#ffffff', logging: false }); const link = document.createElement('a'); link.download = `Замены_${exportDate}.png`; link.href = canvas.toDataURL('image/png'); link.click(); } catch (e) { console.error(e); alert("Ошибка при создании изображения"); } setIsGenerating(false); };
             const subsForDate = data.substitutions.filter(s => s.date === exportDate);
@@ -1528,9 +1590,8 @@
                         <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2"><Icon name="FileSpreadsheet" className="text-emerald-600 dark:text-emerald-400"/> Экспорт данных</h2>
                         <div className="flex flex-wrap gap-4">
                             <button onClick={exportStyledExcel} className="px-6 py-3 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900 rounded-xl font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition flex items-center gap-2"><Icon name="FileSpreadsheet" size={20}/> Скачать Excel (XLS)</button>
-                            {/* НАЧАЛО: Новая кнопка для Google Sheets */}
+                            <button onClick={exportMatrixExcel} className="px-6 py-3 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-900 rounded-xl font-bold hover:bg-blue-100 dark:hover:bg-blue-900/50 transition flex items-center gap-2"><Icon name="Table" size={20}/> Скачать Матрицу (XLS)</button>
                             <button onClick={copyForGoogleSheets} className="px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition shadow-lg shadow-green-200 dark:shadow-none flex items-center gap-2"><Icon name="Clipboard" size={20}/> Копировать для Google Sheets</button>
-                            {/* КОНЕЦ */}
                         </div>
                     </section>
                 </div>
@@ -1573,9 +1634,7 @@
                                     </a>
                                 </div>
                             </nav>
-                            {/* НАЧАЛО: Виджет перемещен вниз из v5.1 */}
                             <StatusWidget />
-                            {/* КОНЕЦ */}
                             <div className="p-4 border-t border-slate-100 dark:border-slate-700 flex items-center justify-between"><button onClick={toggleTheme} className="flex items-center gap-2 text-xs font-bold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition">{theme === 'light' ? <><Icon name="Moon" size={16}/> Темная тема</> : <><Icon name="Sun" size={16}/> Светлая тема</>}</button></div>
                         </div>
                     </aside>
