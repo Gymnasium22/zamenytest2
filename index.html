@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -1471,83 +1472,93 @@
             };
 
             const exportMatrixExcel = () => {
-                const periods = [1, 2, 3, 4, 5, 6, 7];
                 let html = `
                     <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
                     <head><meta charset="UTF-8"><style>
-                        table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 12px; }
+                        table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 12px; margin-bottom: 20px; }
                         td, th { border: 1px solid #000; padding: 2px; vertical-align: middle; text-align: center; }
                         .header { font-weight: bold; background-color: #f3f4f6; }
                         .subject-cell { font-weight: bold; vertical-align: middle; background-color: #fff; }
                         .teacher-cell { text-align: left; padding-left: 5px; }
                         sub { font-size: 9px; vertical-align: sub; }
-                        .day-header { border: 2px solid #000; font-weight: bold; }
-                    </style></head><body><table>
+                    </style></head><body>
                 `;
 
-                html += `<tr>
-                    <th rowspan="3" class="header" style="border: 2px solid #000; width: 150px;">Учебный предмет</th>
-                    <th rowspan="3" class="header" style="border: 2px solid #000; width: 200px;">ФИО</th>
-                    <th colspan="${DAYS.length * periods.length}" class="header" style="border: 2px solid #000; font-size: 14px;">День недели</th>
-                </tr>`;
+                [Shift.First, Shift.Second].forEach(shift => {
+                    const periods = SHIFT_PERIODS[shift];
+                    
+                    html += `<table>`;
+                    // Header Row 1
+                    html += `<tr>
+                        <th rowspan="3" class="header" style="border: 2px solid #000; width: 150px;">Учебный предмет</th>
+                        <th rowspan="3" class="header" style="border: 2px solid #000; width: 200px;">ФИО</th>
+                        <th colspan="${DAYS.length * periods.length}" class="header" style="border: 2px solid #000; font-size: 14px;">День недели</th>
+                    </tr>`;
 
-                html += `<tr>`;
-                DAYS.forEach(day => {
-                    html += `<th colspan="${periods.length}" class="header" style="border: 2px solid #000;">${day}</th>`;
-                });
-                html += `</tr>`;
-
-                html += `<tr>`;
-                DAYS.forEach(() => {
-                    html += `<th colspan="${periods.length}" class="header" style="border-bottom: 2px solid #000;">Урок</th>`;
-                });
-                html += `</tr>`;
-                
-                html += `<tr>
-                    <th class="header" style="border: 2px solid #000;">1 смена</th>
-                    <th class="header" style="border: 2px solid #000;"></th>
-                `;
-                DAYS.forEach(() => {
-                    periods.forEach(p => html += `<th class="header" style="width: 40px;">${p}</th>`);
-                });
-                html += `</tr>`;
-
-                data.subjects.forEach(subject => {
-                    const teachers = data.teachers.filter(t => t.subjectIds.includes(subject.id));
-                    if (teachers.length === 0) return;
-
-                    teachers.forEach((teacher, tIndex) => {
-                        html += `<tr>`;
-                        if (tIndex === 0) {
-                            html += `<td rowspan="${teachers.length}" class="subject-cell" style="border: 2px solid #000;">${subject.name}</td>`;
-                        }
-                        html += `<td class="teacher-cell" style="border-right: 2px solid #000;">${teacher.name}</td>`;
-
-                        DAYS.forEach(day => {
-                            periods.forEach(p => {
-                                const item = data.schedule.find(s => 
-                                    s.teacherId === teacher.id && 
-                                    s.subjectId === subject.id && 
-                                    s.day === day && 
-                                    s.period === p
-                                );
-
-                                if (item) {
-                                    const cls = data.classes.find(c => c.id === item.classId);
-                                    const room = item.roomId ? `<sub>${item.roomId}</sub>` : '';
-                                    const dir = item.direction ? ` <span style="font-size:9px">(${item.direction})</span>` : '';
-                                    html += `<td style="border: 1px solid #000; font-weight: bold;">${cls ? cls.name : ''}${dir}${room}</td>`;
-                                } else {
-                                    html += `<td style="border: 1px solid #000;"></td>`;
-                                }
-                            });
-                        });
-                        html += `</tr>`;
+                    // Header Row 2 (Days)
+                    html += `<tr>`;
+                    DAYS.forEach(day => {
+                        html += `<th colspan="${periods.length}" class="header" style="border: 2px solid #000;">${day}</th>`;
                     });
-                    html += `<tr><td colspan="${2 + DAYS.length * periods.length}" style="height: 2px; background-color: #000;"></td></tr>`;
+                    html += `</tr>`;
+
+                    // Header Row 3 (Periods)
+                    html += `<tr>`;
+                    DAYS.forEach(() => {
+                        html += `<th colspan="${periods.length}" class="header" style="border-bottom: 2px solid #000;">Урок</th>`;
+                    });
+                    html += `</tr>`;
+                    
+                    // Header Row 4 (Shift Label & Period Numbers)
+                    html += `<tr>
+                        <th class="header" style="border: 2px solid #000; background-color: #e0e7ff;">${shift}</th>
+                        <th class="header" style="border: 2px solid #000;"></th>
+                    `;
+                    DAYS.forEach(() => {
+                        periods.forEach(p => html += `<th class="header" style="width: 40px;">${p}</th>`);
+                    });
+                    html += `</tr>`;
+
+                    // Data Rows
+                    data.subjects.forEach(subject => {
+                        const teachers = data.teachers.filter(t => t.subjectIds.includes(subject.id));
+                        if (teachers.length === 0) return;
+
+                        teachers.forEach((teacher, tIndex) => {
+                            html += `<tr>`;
+                            if (tIndex === 0) {
+                                html += `<td rowspan="${teachers.length}" class="subject-cell" style="border: 2px solid #000;">${subject.name}</td>`;
+                            }
+                            html += `<td class="teacher-cell" style="border-right: 2px solid #000;">${teacher.name}</td>`;
+
+                            DAYS.forEach(day => {
+                                periods.forEach(p => {
+                                    const item = data.schedule.find(s => 
+                                        s.teacherId === teacher.id && 
+                                        s.subjectId === subject.id && 
+                                        s.day === day && 
+                                        s.period === p &&
+                                        s.shift === shift
+                                    );
+
+                                    if (item) {
+                                        const cls = data.classes.find(c => c.id === item.classId);
+                                        const room = item.roomId ? `<sub>${item.roomId}</sub>` : '';
+                                        const dir = item.direction ? ` <span style="font-size:9px">(${item.direction})</span>` : '';
+                                        html += `<td style="border: 1px solid #000; font-weight: bold;">${cls ? cls.name : ''}${dir}${room}</td>`;
+                                    } else {
+                                        html += `<td style="border: 1px solid #000;"></td>`;
+                                    }
+                                });
+                            });
+                            html += `</tr>`;
+                        });
+                        html += `<tr><td colspan="${2 + DAYS.length * periods.length}" style="height: 2px; background-color: #000;"></td></tr>`;
+                    });
+                    html += `</table><br/><br/>`;
                 });
 
-                html += `</table></body></html>`;
+                html += `</body></html>`;
                 const blob = new Blob([html], { type: "application/vnd.ms-excel" });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
