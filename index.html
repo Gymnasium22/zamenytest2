@@ -1545,7 +1545,9 @@
                                         const cls = data.classes.find(c => c.id === item.classId);
                                         const room = item.roomId ? `<sub>${item.roomId}</sub>` : '';
                                         const dir = item.direction ? ` <span style="font-size:9px">(${item.direction})</span>` : '';
-                                        html += `<td style="border: 1px solid #000; font-weight: bold;">${cls ? cls.name : ''}${dir}${room}</td>`;
+                                        // Use subject color for background
+                                        const bgColor = subject.color || '#ffffff';
+                                        html += `<td style="border: 1px solid #000; font-weight: bold; background-color: ${bgColor};">${cls ? cls.name : ''}${dir}${room}</td>`;
                                     } else {
                                         html += `<td style="border: 1px solid #000;"></td>`;
                                     }
