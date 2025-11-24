@@ -1524,10 +1524,12 @@
                         const teachers = data.teachers.filter(t => t.subjectIds.includes(subject.id));
                         if (teachers.length === 0) return;
 
+                        const subjectColor = subject.color || '#ffffff';
+
                         teachers.forEach((teacher, tIndex) => {
                             html += `<tr>`;
                             if (tIndex === 0) {
-                                html += `<td rowspan="${teachers.length}" class="subject-cell" style="border: 2px solid #000;">${subject.name}</td>`;
+                                html += `<td rowspan="${teachers.length}" class="subject-cell" style="border: 2px solid #000; background-color: ${subjectColor};">${subject.name}</td>`;
                             }
                             html += `<td class="teacher-cell" style="border-right: 2px solid #000;">${teacher.name}</td>`;
 
